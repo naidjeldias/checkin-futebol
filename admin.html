@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#145c2b">
+  <title>Administrador · Check-in do futebol</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topo">
+    <p class="marca">Pelada</p>
+    <h1>Administrador</h1>
+    <p>Local do campo, raio e tamanho dos times.</p>
+  </header>
+
+  <main>
+    <a class="atalho" href="index.html">Voltar ao check-in</a>
+
+    <section id="aviso-config" class="painel alerta" hidden></section>
+
+    <form id="form-login" class="bloco" autocomplete="off">
+      <h2>Entrar</h2>
+      <label for="usuario">Usuário</label>
+      <input id="usuario" name="usuario" autocomplete="off" required>
+      <label for="senha">Senha</label>
+      <input id="senha" name="senha" type="password" autocomplete="off" required>
+      <button type="submit">Entrar</button>
+      <p id="login-msg" class="resultado" aria-live="polite"></p>
+    </form>
+
+    <section id="painel-admin" class="bloco" hidden>
+      <h2>Organização do jogo</h2>
+      <p id="estado-local" class="nota">Carregando…</p>
+
+      <form id="form-admin">
+        <label for="raio">Raio (metros)</label>
+        <input id="raio" type="number" inputmode="numeric" min="10" max="2000" step="1" value="200" required>
+
+        <label for="num-times">Número de times</label>
+        <input id="num-times" type="number" inputmode="numeric" min="2" max="10" step="1" value="4" required>
+
+        <label for="por-time">Jogadores por time</label>
+        <input id="por-time" type="number" inputmode="numeric" min="1" max="15" step="1" value="6" required>
+
+        <button type="submit">Salvar parâmetros</button>
+        <button id="definir-local" class="secundario" type="button">Definir este local como o campo</button>
+        <p id="admin-msg" class="resultado" aria-live="polite"></p>
+      </form>
+
+      <div id="confirma-novo" class="confirma" hidden>
+        <p>Apagar a lista e o sorteio deste jogo?</p>
+        <div class="botoes">
+          <button id="novo-sim" class="perigo" type="button">Apagar e começar de novo</button>
+          <button id="novo-nao" class="secundario" type="button">Cancelar</button>
+        </div>
+      </div>
+      <button id="novo-jogo" class="perigo" type="button">Novo jogo</button>
+    </section>
+  </main>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,271 @@
+:root {
+  --ink: #142016;
+  --paper: #f4f7f1;
+  --muted: #3d4a40;
+  --line: #142016;
+  --grass: #1b7a38;
+  --grass-dark: #145c2b;
+  --sun: #ffe14a;
+  --warn-bg: #fff4e8;
+  --danger: #8c2f12;
+  --card: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 100%; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.35;
+}
+
+.topo {
+  padding: 1.5rem 1.25rem 1.35rem;
+  background: var(--grass-dark);
+  color: #fff;
+}
+
+.marca {
+  margin: 0 0 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2.4rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.topo p:last-child {
+  margin: 0.7rem 0 0;
+  max-width: 22rem;
+  font-size: 1.05rem;
+}
+
+main {
+  width: min(36rem, 100%);
+  margin: 0 auto;
+  padding: 1rem 1rem calc(1.5rem + env(safe-area-inset-bottom));
+}
+
+.painel,
+.bloco,
+.time,
+.confirma {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--card);
+  border: 2px solid var(--line);
+}
+
+.alerta { background: var(--warn-bg); }
+
+.painel p,
+.resultado,
+.nota,
+#regra-sorteio,
+#contagem,
+.confirma p {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.nota { margin-top: 0.8rem; }
+
+label {
+  display: block;
+  margin: 0.9rem 0 0.35rem;
+  font-weight: 700;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input:not([type]) {
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.7rem 0.8rem;
+  border: 2px solid var(--line);
+  border-radius: 0;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.15rem;
+}
+
+.opcao {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  margin-top: 0.9rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.opcao input {
+  width: 1.4rem;
+  height: 1.4rem;
+  margin: 0;
+  accent-color: var(--grass-dark);
+}
+
+button {
+  width: 100%;
+  min-height: 3.5rem;
+  margin-top: 0.9rem;
+  padding: 0.8rem 1rem;
+  border: 2px solid var(--grass-dark);
+  border-radius: 0;
+  background: var(--grass);
+  color: #fff;
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+button:disabled {
+  opacity: 0.55;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.secundario {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.perigo {
+  background: #fff;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.botoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.botoes button { margin-top: 0.7rem; }
+
+.bloco-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+#contagem {
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+#lista,
+.nomes {
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+#lista li,
+.nomes li {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.1rem;
+  padding: 0.45rem 0;
+  border-top: 2px solid var(--line);
+  font-size: 1.15rem;
+}
+
+.posicao {
+  flex: 0 0 2.2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.pessoa { flex: 1; }
+
+.hora {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
+}
+
+.eu { background: #e7f6ea; }
+
+.badge {
+  padding: 0.15rem 0.4rem;
+  background: var(--sun);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.time + .time { margin-top: 0.8rem; }
+
+.time h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+}
+
+.vaga {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.espera { margin-top: 1rem; }
+
+.espera h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+a.atalho {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3.5rem;
+  margin-top: 0.9rem;
+  padding: 0.8rem 1rem;
+  border: 2px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+a.atalho:active { transform: translateY(1px); }
+
+#lista-vazia {
+  margin: 0.8rem 0 0;
+  font-size: 1.15rem;
+}
+
+#regra-sorteio {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+}

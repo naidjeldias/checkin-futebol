@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#145c2b">
+  <title>Check-in do futebol</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topo">
+    <p class="marca">Pelada</p>
+    <h1>Check-in</h1>
+    <p>A lista segue a ordem de chegada. Só entra quem está no campo.</p>
+  </header>
+
+  <main>
+    <section id="aviso-config" class="painel alerta" hidden></section>
+
+    <section class="painel" aria-live="polite">
+      <p id="status-texto">Buscando a localização…</p>
+      <button id="tentar-local" class="secundario" type="button" hidden>Tentar de novo</button>
+    </section>
+
+    <form id="form-checkin" hidden>
+      <label for="nome">Seu nome</label>
+      <input id="nome" name="nome" maxlength="40" autocomplete="name" enterkeyhint="done" required>
+      <label class="opcao" for="goleiro">
+        <input id="goleiro" type="checkbox">
+        <span>Sou goleiro</span>
+      </label>
+      <button type="submit">Cheguei</button>
+      <p id="resultado" class="resultado" aria-live="polite"></p>
+    </form>
+
+    <section class="bloco" aria-labelledby="titulo-lista">
+      <div class="bloco-topo">
+        <h2 id="titulo-lista">Ordem de chegada</h2>
+        <p id="contagem"></p>
+      </div>
+      <ol id="lista"></ol>
+      <p id="lista-vazia">Ninguém chegou ainda.</p>
+    </section>
+
+    <section class="bloco" aria-labelledby="titulo-times">
+      <h2 id="titulo-times">Times</h2>
+      <p id="regra-sorteio"></p>
+      <button id="sugerir" type="button">Sugerir times</button>
+      <div id="confirma-sorteio" class="confirma" hidden>
+        <p>Sortear de novo substitui os times atuais.</p>
+        <div class="botoes">
+          <button id="confirma-sim" type="button">Sortear de novo</button>
+          <button id="confirma-nao" class="secundario" type="button">Cancelar</button>
+        </div>
+      </div>
+      <p id="sorteio-aviso" class="nota" hidden></p>
+      <div id="times"></div>
+      <div id="espera"></div>
+    </section>
+
+    <a class="atalho" href="admin.html">Administrador</a>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
