@@ -11,6 +11,8 @@ A página fica pronta no celular depois destes passos. O usuário e a senha do a
 
 Se o banco já foi criado com a versão anterior, rode `supabase/atualizar-admin.sql` em vez de repetir o setup. Isso passa o acesso para `admin` / `admin` e os padrões para 4 times de 6 jogadores.
 
+Se o banco já existe, rode também `supabase/atualizar-sorteio.sql` uma vez. O sorteio passa a completar os times 1 e 2 antes de dividir o restante.
+
 A lista mostra o horário de Brasília. Se o grupo for de outro fuso, troque a constante `FUSO` em `app.js`.
 
 ## 2. Ligar a página
@@ -47,6 +49,9 @@ O raio inicial é 200 metros. O check-in só abre depois que o local está salvo
 - **Sugerir times** sorteia os times e grava o resultado para todo mundo ver o mesmo sorteio.
 - Entram primeiro quem chegou antes, até preencher `times × jogadores por time`.
 - Cada time fica com no máximo um goleiro. Goleiro que passar disso fica na espera, e a próxima pessoa de linha sobe.
+- Os times 1 e 2, que se enfrentam primeiro, saem completos. O restante se divide por igual entre os outros times.
+- Sem goleiro nesse time, a última vaga fica aberta para puxar alguém de fora. Com um goleiro só, um time fica com essa vaga. Sem nenhum goleiro, os dois ficam com uma vaga.
+- Se a lista lotar e essas vagas ficarem reservadas, quem chegou por último fica na espera.
 - Sortear de novo pede confirmação e substitui o sorteio.
 - **Novo jogo**, na página de administrador, apaga a lista e o sorteio. O local do campo continua salvo.
 
