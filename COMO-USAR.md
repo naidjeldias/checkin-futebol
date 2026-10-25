@@ -13,6 +13,8 @@ Se o banco já foi criado com a versão anterior, rode `supabase/atualizar-admin
 
 Se o banco já existe, rode também `supabase/atualizar-sorteio.sql` uma vez. O sorteio passa a completar os times 1 e 2 antes de dividir o restante.
 
+Se o banco já existe, rode também `supabase/atualizar-aparelho.sql` uma vez. Cada celular coloca um nome por jogo. **Novo jogo** apaga a lista e libera o celular de novo.
+
 A lista mostra o horário de Brasília. Se o grupo for de outro fuso, troque a constante `FUSO` em `app.js`.
 
 ## 2. Ligar a página
@@ -43,7 +45,8 @@ O raio inicial é 200 metros. O check-in só abre depois que o local está salvo
 
 ## No dia do jogo
 
-- Quem está dentro do raio escreve o nome e toca em **Cheguei**.
+- Quem está dentro do raio escreve o nome e toca em **Cheguei**. Cada celular entra com um nome só.
+- Para corrigir o nome, toque em **Sair da lista** e entre de novo. A nova entrada vai para o fim da fila.
 - **Sou goleiro** começa desmarcado. Só marca quem for goleiro.
 - A lista fica em ordem de chegada e pode ser vista por quem ainda está a caminho.
 - **Sugerir times** sorteia os times e grava o resultado para todo mundo ver o mesmo sorteio.

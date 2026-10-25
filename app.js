@@ -4,6 +4,7 @@ import { supabaseAnonKey, supabaseUrl } from "./config.js";
 // Horário mostrado na lista. Troque só esta linha se o grupo for de outro fuso.
 const FUSO = "America/Sao_Paulo";
 const CHAVE_NOME = "checkin-futebol-nome";
+const CHAVE_APARELHO = "checkin-futebol-aparelho";
 
 const statusTexto = document.querySelector("#status-texto");
 const tentarLocal = document.querySelector("#tentar-local");
@@ -12,6 +13,9 @@ const formCheckin = document.querySelector("#form-checkin");
 const campoNome = document.querySelector("#nome");
 const campoGoleiro = document.querySelector("#goleiro");
 const resultado = document.querySelector("#resultado");
+const jaNaLista = document.querySelector("#ja-na-lista");
+const jaNaListaTexto = document.querySelector("#ja-na-lista-texto");
+const botaoSair = document.querySelector("#sair-lista");
 const lista = document.querySelector("#lista");
 const listaVazia = document.querySelector("#lista-vazia");
 const contagem = document.querySelector("#contagem");
@@ -33,6 +37,8 @@ let supabase = null;
 let carregando = false;
 let cargaPendente = false;
 let jaCarregou = false;
+let presenca = null;
+let bancoDesatualizado = false;
 
 function configurado() {
   return Boolean(
@@ -73,6 +79,47 @@ function normalizar(nome) {
     .replace(/\p{M}/gu, "");
 }
 
+function aparelhoId() {
+  try {
+    const guardado = localStorage.getItem(CHAVE_APARELHO) || "";
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(guardado)) {
+      return guardado;
+    }
+    if (!crypto.randomUUID) return "";
+    const novo = crypto.randomUUID();
+    localStorage.setItem(CHAVE_APARELHO, novo);
+    return novo;
+  } catch (erro) {
+    return "";
+  }
+}
+
+function bancoAntigo(erro) {
+  const texto = `${erro && erro.message ? erro.message : ""} ${erro && erro.details ? erro.details : ""} ${erro && erro.code ? erro.code : ""}`;
+  return /schema cache|PGRST202|Could not find the function/i.test(texto);
+}
+
+function marcarBancoDesatualizado() {
+  bancoDesatualizado = true;
+  formCheckin.hidden = true;
+  tentarLocal.hidden = true;
+  jaNaLista.hidden = true;
+  statusTexto.textContent = "O banco ainda está na versão anterior. Rode supabase/atualizar-aparelho.sql no SQL Editor do Supabase.";
+}
+
+function mostrarPresenca(data, recemChegou) {
+  presenca = { nome: data.nome, posicao: data.posicao };
+  formCheckin.hidden = true;
+  tentarLocal.hidden = true;
+  jaNaLista.hidden = false;
+  jaNaListaTexto.textContent = recemChegou
+    ? `Você é o ${data.posicao}º.`
+    : `Este celular já colocou ${data.nome} na lista. Você é o ${data.posicao}º.`;
+  statusTexto.textContent = "Você está na lista.";
+  localStorage.setItem(CHAVE_NOME, data.nome);
+  campoNome.value = data.nome;
+}
+
 function mensagemErro(codigo) {
   switch (codigo) {
     case "gps_impreciso":
@@ -81,6 +128,8 @@ function mensagemErro(codigo) {
       return "O campo ainda não foi definido. Quem organiza marca o local na página de administrador.";
     case "nome_invalido":
       return "Use um nome com 2 a 40 letras.";
+    case "aparelho_invalido":
+      return "Não foi possível identificar este celular. Abra o link no Chrome ou no Safari.";
     case "credenciais_invalidas":
     case "senha_incorreta":
       return "Usuário ou senha incorretos.";
@@ -145,6 +194,12 @@ function primeiraLinha(data) {
 }
 
 function aplicarRespostaLocal(data) {
+  if (bancoDesatualizado) return;
+  if (presenca) {
+    mostrarPresenca(presenca, false);
+    return;
+  }
+
   tentarLocal.hidden = false;
   if (data.ok) {
     statusTexto.textContent = "Você está no campo. Coloque seu nome na lista.";
@@ -331,6 +386,7 @@ function agendarCarga() {
 }
 
 async function atualizarLocal() {
+  if (bancoDesatualizado || presenca) return;
   statusTexto.textContent = "Buscando a localização…";
   tentarLocal.hidden = true;
   try {
@@ -343,6 +399,7 @@ async function atualizarLocal() {
     if (error) throw error;
     aplicarRespostaLocal(data);
   } catch (erro) {
+    if (presenca || bancoDesatualizado) return;
     formCheckin.hidden = true;
     tentarLocal.hidden = false;
     if (erro && erro.message && !erro.code) {
@@ -356,8 +413,14 @@ async function atualizarLocal() {
 async function enviarCheckin(evento) {
   evento.preventDefault();
   const botao = formCheckin.querySelector("button[type=submit]");
+  const aparelho = aparelhoId();
   botao.disabled = true;
   resultado.textContent = "Confirmando a localização…";
+  if (!aparelho) {
+    resultado.textContent = mensagemErro("aparelho_invalido");
+    botao.disabled = false;
+    return;
+  }
   try {
     const posicao = await lerGps();
     const { data, error } = await supabase.rpc("checkin", {
@@ -366,30 +429,104 @@ async function enviarCheckin(evento) {
       p_lng: posicao.coords.longitude,
       p_precisao: posicao.coords.accuracy,
       p_goleiro: campoGoleiro.checked,
+      p_aparelho: aparelho,
     });
     if (error) throw error;
     campoGoleiro.checked = false;
     if (!data || !data.ok) {
-      if (data.erro === "nome_invalido") {
+      if (data && data.erro === "aparelho_ja_usou") {
+        mostrarPresenca(data, false);
+        resultado.textContent = "";
+        await carregar();
+        return;
+      }
+      if (data && (data.erro === "nome_invalido" || data.erro === "aparelho_invalido")) {
         resultado.textContent = mensagemErro(data.erro);
+        return;
+      }
+      if (!data) {
+        resultado.textContent = "Não foi possível entrar na lista.";
         return;
       }
       resultado.textContent = "";
       aplicarRespostaLocal(data);
       return;
     }
-    localStorage.setItem(CHAVE_NOME, data.nome);
-    campoNome.value = data.nome;
-    resultado.textContent = data.ja_existia
-      ? `Você já está na lista. Você é o ${data.posicao}º.`
-      : `Você é o ${data.posicao}º.`;
+    if (data.ja_existia) {
+      const meu = await supabase.rpc("meu_checkin", { p_aparelho: aparelho });
+      if (meu.error) throw meu.error;
+      if (meu.data && meu.data.ok) {
+        mostrarPresenca(meu.data, false);
+        resultado.textContent = "";
+      } else {
+        localStorage.setItem(CHAVE_NOME, data.nome);
+        campoNome.value = data.nome;
+        resultado.textContent = `Você já está na lista. Você é o ${data.posicao}º.`;
+      }
+      await carregar();
+      return;
+    }
+    mostrarPresenca(data, true);
+    resultado.textContent = "";
     await carregar();
   } catch (erro) {
+    if (bancoAntigo(erro)) {
+      marcarBancoDesatualizado();
+      return;
+    }
     resultado.textContent = erro && erro.code
       ? textoFalhaGps(erro)
       : "Não foi possível entrar na lista.";
   } finally {
     botao.disabled = false;
+  }
+}
+
+async function sincronizarAparelho() {
+  const aparelho = aparelhoId();
+  if (!aparelho) return;
+  try {
+    const { data, error } = await supabase.rpc("meu_checkin", { p_aparelho: aparelho });
+    if (error) throw error;
+    if (data && data.ok) {
+      mostrarPresenca(data, false);
+      render();
+    }
+  } catch (erro) {
+    if (bancoAntigo(erro)) marcarBancoDesatualizado();
+    console.error(erro);
+  }
+}
+
+async function sairDaLista() {
+  const aparelho = aparelhoId();
+  botaoSair.disabled = true;
+  if (!aparelho) {
+    jaNaListaTexto.textContent = mensagemErro("aparelho_invalido");
+    botaoSair.disabled = false;
+    return;
+  }
+  try {
+    const { data, error } = await supabase.rpc("sair_da_lista", { p_aparelho: aparelho });
+    if (error) throw error;
+    if (!data || !data.ok) {
+      jaNaListaTexto.textContent = mensagemErro(data && data.erro);
+      return;
+    }
+    presenca = null;
+    jaNaLista.hidden = true;
+    resultado.textContent = "";
+    await carregar();
+    await atualizarLocal();
+  } catch (erro) {
+    if (bancoAntigo(erro)) {
+      marcarBancoDesatualizado();
+      return;
+    }
+    jaNaListaTexto.textContent = "Não foi possível sair da lista.";
+    console.error(erro);
+  } finally {
+    botaoSair.disabled = false;
   }
 }
 
@@ -426,7 +563,9 @@ function iniciar() {
 
   supabase = createClient(supabaseUrl, supabaseAnonKey);
   carregar();
-  atualizarLocal();
+  sincronizarAparelho().then(() => {
+    if (!presenca && !bancoDesatualizado) atualizarLocal();
+  });
 
   supabase
     .channel("checkin-ao-vivo")
@@ -442,6 +581,7 @@ function iniciar() {
 
 tentarLocal.addEventListener("click", atualizarLocal);
 formCheckin.addEventListener("submit", enviarCheckin);
+botaoSair.addEventListener("click", sairDaLista);
 botaoSugerir.addEventListener("click", () => {
   if (estado.sorteio) {
     confirmaSorteio.hidden = false;

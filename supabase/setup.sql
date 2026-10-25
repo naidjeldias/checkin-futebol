@@ -45,6 +45,11 @@ create table checkins (
 
 create index checkins_ordem on checkins (created_at, id);
 
+create table checkin_aparelho (
+  aparelho uuid primary key,
+  checkin_id bigint not null unique references checkins (id) on delete cascade
+);
+
 create table sorteio (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
@@ -207,7 +212,8 @@ create or replace function public.checkin(
   p_lat double precision,
   p_lng double precision,
   p_precisao double precision,
-  p_goleiro boolean
+  p_goleiro boolean,
+  p_aparelho uuid
 )
 returns jsonb
 language plpgsql
@@ -219,9 +225,16 @@ declare
   v_norm text;
   v_local jsonb;
   v_id bigint;
-  v_created timestamptz;
   v_exist_id bigint;
+  v_exist_nome text;
+  v_aparelho_do_nome uuid;
+  v_link_id bigint;
+  v_link_nome text;
 begin
+  if p_aparelho is null then
+    return jsonb_build_object('ok', false, 'erro', 'aparelho_invalido');
+  end if;
+
   v_nome := regexp_replace(trim(coalesce(p_nome, '')), '\s+', ' ', 'g');
 
   if char_length(v_nome) < 2
@@ -232,16 +245,39 @@ begin
 
   v_norm := nome_normalizado(v_nome);
 
-  select id into v_exist_id
-  from checkins
-  where nome_norm = v_norm;
+  select c.id, c.nome, a.aparelho
+    into v_exist_id, v_exist_nome, v_aparelho_do_nome
+  from checkins c
+  left join checkin_aparelho a on a.checkin_id = c.id
+  where c.nome_norm = v_norm;
+
+  select a.checkin_id, c.nome
+    into v_link_id, v_link_nome
+  from checkin_aparelho a
+  join checkins c on c.id = a.checkin_id
+  where a.aparelho = p_aparelho;
 
   if v_exist_id is not null then
+    if v_aparelho_do_nome is null and v_link_id is null then
+      insert into checkin_aparelho (aparelho, checkin_id)
+      values (p_aparelho, v_exist_id)
+      on conflict do nothing;
+    end if;
+
     return jsonb_build_object(
       'ok', true,
       'ja_existia', true,
       'posicao', posicao_de(v_exist_id),
-      'nome', (select nome from checkins where id = v_exist_id)
+      'nome', v_exist_nome
+    );
+  end if;
+
+  if v_link_id is not null then
+    return jsonb_build_object(
+      'ok', false,
+      'erro', 'aparelho_ja_usou',
+      'posicao', posicao_de(v_link_id),
+      'nome', v_link_nome
     );
   end if;
 
@@ -252,7 +288,10 @@ begin
 
   insert into checkins (nome, nome_norm, goleiro)
   values (v_nome, v_norm, coalesce(p_goleiro, false))
-  returning id, created_at into v_id, v_created;
+  returning id into v_id;
+
+  insert into checkin_aparelho (aparelho, checkin_id)
+  values (p_aparelho, v_id);
 
   return jsonb_build_object(
     'ok', true,
@@ -262,16 +301,108 @@ begin
   );
 exception
   when unique_violation then
-    select id into v_exist_id
-    from checkins
-    where nome_norm = v_norm;
+    select c.id, c.nome, a.aparelho
+      into v_exist_id, v_exist_nome, v_aparelho_do_nome
+    from checkins c
+    left join checkin_aparelho a on a.checkin_id = c.id
+    where c.nome_norm = v_norm;
 
-    return jsonb_build_object(
-      'ok', true,
-      'ja_existia', true,
-      'posicao', posicao_de(v_exist_id),
-      'nome', (select nome from checkins where id = v_exist_id)
-    );
+    if v_exist_id is not null then
+      select a.checkin_id
+        into v_link_id
+      from checkin_aparelho a
+      where a.aparelho = p_aparelho;
+
+      if v_aparelho_do_nome is null and v_link_id is null then
+        insert into checkin_aparelho (aparelho, checkin_id)
+        values (p_aparelho, v_exist_id)
+        on conflict do nothing;
+      end if;
+
+      return jsonb_build_object(
+        'ok', true,
+        'ja_existia', true,
+        'posicao', posicao_de(v_exist_id),
+        'nome', v_exist_nome
+      );
+    end if;
+
+    select a.checkin_id, c.nome
+      into v_link_id, v_link_nome
+    from checkin_aparelho a
+    join checkins c on c.id = a.checkin_id
+    where a.aparelho = p_aparelho;
+
+    if v_link_id is not null then
+      return jsonb_build_object(
+        'ok', false,
+        'erro', 'aparelho_ja_usou',
+        'posicao', posicao_de(v_link_id),
+        'nome', v_link_nome
+      );
+    end if;
+
+    raise;
+end;
+$$;
+
+create or replace function public.meu_checkin(p_aparelho uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_id bigint;
+  v_nome text;
+begin
+  if p_aparelho is null then
+    return jsonb_build_object('ok', false, 'erro', 'aparelho_invalido');
+  end if;
+
+  select c.id, c.nome
+    into v_id, v_nome
+  from checkin_aparelho a
+  join checkins c on c.id = a.checkin_id
+  where a.aparelho = p_aparelho;
+
+  if v_id is null then
+    return jsonb_build_object('ok', false, 'erro', 'sem_checkin');
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'nome', v_nome,
+    'posicao', posicao_de(v_id)
+  );
+end;
+$$;
+
+create or replace function public.sair_da_lista(p_aparelho uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id bigint;
+begin
+  if p_aparelho is null then
+    return jsonb_build_object('ok', false, 'erro', 'aparelho_invalido');
+  end if;
+
+  select checkin_id into v_id
+  from checkin_aparelho
+  where aparelho = p_aparelho;
+
+  if v_id is null then
+    return jsonb_build_object('ok', true, 'ja_saiu', true);
+  end if;
+
+  delete from checkins where id = v_id;
+
+  return jsonb_build_object('ok', true, 'ja_saiu', false);
 end;
 $$;
 
@@ -591,7 +722,9 @@ revoke all on function public.entrar_admin(text, text) from public;
 
 revoke all on function public.ler_parametros() from public;
 revoke all on function public.verificar_local(double precision, double precision, double precision) from public;
-revoke all on function public.checkin(text, double precision, double precision, double precision, boolean) from public;
+revoke all on function public.checkin(text, double precision, double precision, double precision, boolean, uuid) from public;
+revoke all on function public.meu_checkin(uuid) from public;
+revoke all on function public.sair_da_lista(uuid) from public;
 revoke all on function public.salvar_parametros(text, text, double precision, double precision, double precision, int, int, int, boolean) from public;
 revoke all on function public.sugerir_times() from public;
 revoke all on function public.novo_jogo(text, text) from public;
@@ -599,7 +732,9 @@ revoke all on function public.novo_jogo(text, text) from public;
 grant execute on function public.entrar_admin(text, text) to anon, authenticated;
 grant execute on function public.ler_parametros() to anon, authenticated;
 grant execute on function public.verificar_local(double precision, double precision, double precision) to anon, authenticated;
-grant execute on function public.checkin(text, double precision, double precision, double precision, boolean) to anon, authenticated;
+grant execute on function public.checkin(text, double precision, double precision, double precision, boolean, uuid) to anon, authenticated;
+grant execute on function public.meu_checkin(uuid) to anon, authenticated;
+grant execute on function public.sair_da_lista(uuid) to anon, authenticated;
 grant execute on function public.salvar_parametros(text, text, double precision, double precision, double precision, int, int, int, boolean) to anon, authenticated;
 grant execute on function public.sugerir_times() to anon, authenticated;
 grant execute on function public.novo_jogo(text, text) to anon, authenticated;
@@ -608,8 +743,11 @@ grant select on checkins to anon, authenticated;
 grant select on sorteio to anon, authenticated;
 grant select on sorteio_jogadores to anon, authenticated;
 
+revoke all on table public.checkin_aparelho from public, anon, authenticated;
+
 alter table parametros enable row level security;
 alter table checkins enable row level security;
+alter table checkin_aparelho enable row level security;
 alter table sorteio enable row level security;
 alter table sorteio_jogadores enable row level security;
 
