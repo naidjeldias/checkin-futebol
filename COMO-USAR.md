@@ -17,6 +17,8 @@ Se o banco já existe, rode também `supabase/atualizar-aparelho.sql` uma vez. C
 
 Se o banco já existe, rode também `supabase/atualizar-vagas.sql` uma vez. Depois do sorteio, quem chegar entra nas vagas que sobrarem.
 
+Se o banco já existe, rode também `supabase/atualizar-lista-admin.sql` uma vez. Na página de administrador dá para ver a lista, incluir e remover pessoas.
+
 A lista mostra o horário de Brasília. Se o grupo for de outro fuso, troque a constante `FUSO` em `app.js`.
 
 ## 2. Ligar a página
@@ -32,7 +34,7 @@ A lista mostra o horário de Brasília. Se o grupo for de outro fuso, troque a c
 3. O link fica parecido com `https://seu-usuario.github.io/checkin-futebol/`.
 4. Mande esse link no grupo.
 
-A chave anon no `config.js` é pública de propósito. Quem tem o link vê a lista de nomes. Mudar o campo, o raio, os times e apagar o jogo exigem o usuário e a senha na página de administrador.
+A chave anon no `config.js` é pública de propósito. Quem tem o link vê a lista de nomes. Mudar o campo, o raio, os times, incluir ou remover pessoas e apagar o jogo exigem o usuário e a senha na página de administrador.
 
 ## 4. No campo, uma vez
 
@@ -59,6 +61,7 @@ O raio inicial é 200 metros. O check-in só abre depois que o local está salvo
 - Se a lista lotar e essas vagas ficarem reservadas, quem chegou por último fica na espera.
 - Depois do sorteio, quem chegar entra nas vagas que sobrarem, com as mesmas regras. Quem já está num time não muda de lugar. Quem sai libera a vaga para a próxima pessoa da espera.
 - Sortear de novo pede confirmação e substitui o sorteio.
+- Na página de administrador, a lista aparece atualizada. **Adicionar** coloca alguém no fim da fila, sem GPS e sem prender o celular de quem organiza. **Remover** pede confirmação, tira a pessoa e libera o celular dela.
 - **Novo jogo**, na página de administrador, apaga a lista e o sorteio. O local do campo continua salvo.
 
 Se a localização não funcionar dentro do WhatsApp, abra o link no Chrome ou no Safari. O GPS precisa estar preciso (melhor que 100 m), de preferência ao ar livre.

@@ -12,7 +12,7 @@
   <header class="topo">
     <p class="marca">Pelada</p>
     <h1>Administrador</h1>
-    <p>Local do campo, raio e tamanho dos times.</p>
+    <p>Local do campo, raio, times e a lista do jogo.</p>
   </header>
 
   <main>
@@ -48,6 +48,27 @@
         <button id="definir-local" class="secundario" type="button">Definir este local como o campo</button>
         <p id="admin-msg" class="resultado" aria-live="polite"></p>
       </form>
+
+      <section class="lista-admin" aria-labelledby="titulo-lista">
+        <div class="bloco-topo">
+          <h2 id="titulo-lista">Ordem de chegada</h2>
+          <p id="contagem-admin"></p>
+        </div>
+        <ol id="lista-admin"></ol>
+        <p id="lista-vazia-admin">Ninguém chegou ainda.</p>
+
+        <form id="form-pessoa">
+          <label for="nome-pessoa">Nome</label>
+          <input id="nome-pessoa" name="nome" maxlength="40" autocomplete="off" enterkeyhint="done" required>
+          <label class="opcao" for="goleiro-pessoa">
+            <input id="goleiro-pessoa" type="checkbox">
+            <span>Goleiro</span>
+          </label>
+          <button type="submit">Adicionar</button>
+          <p id="pessoa-msg" class="resultado" aria-live="polite"></p>
+        </form>
+        <p class="nota">A pessoa entra no fim da fila. Isso não usa o GPS nem prende este celular.</p>
+      </section>
 
       <div id="confirma-novo" class="confirma" hidden>
         <p>Apagar a lista e o sorteio deste jogo?</p>

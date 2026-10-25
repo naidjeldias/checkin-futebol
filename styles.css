@@ -178,6 +178,7 @@ h2 {
 }
 
 #lista,
+#lista-admin,
 .nomes {
   margin: 0.8rem 0 0;
   padding: 0;
@@ -185,6 +186,7 @@ h2 {
 }
 
 #lista li,
+#lista-admin li,
 .nomes li {
   display: flex;
   align-items: center;
@@ -259,9 +261,35 @@ a.atalho {
 
 a.atalho:active { transform: translateY(1px); }
 
-#lista-vazia {
+#lista-vazia,
+#lista-vazia-admin {
   margin: 0.8rem 0 0;
   font-size: 1.15rem;
+}
+
+.lista-admin {
+  margin-top: 1.4rem;
+  padding-top: 1.2rem;
+  border-top: 2px solid var(--line);
+}
+
+#lista-admin li {
+  flex-wrap: wrap;
+}
+
+button.compacto {
+  width: auto;
+  flex: 0 0 auto;
+  min-height: 2.4rem;
+  margin-top: 0;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.95rem;
+}
+
+.acoes-lista {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.4rem;
 }
 
 #regra-sorteio {

@@ -1,6 +1,8 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 import { supabaseAnonKey, supabaseUrl } from "./config.js";
 
+const FUSO = "America/Sao_Paulo";
+
 const avisoConfig = document.querySelector("#aviso-config");
 const formLogin = document.querySelector("#form-login");
 const campoUsuario = document.querySelector("#usuario");
@@ -16,9 +18,21 @@ const botaoDefinirLocal = document.querySelector("#definir-local");
 const adminMsg = document.querySelector("#admin-msg");
 const confirmaNovo = document.querySelector("#confirma-novo");
 const botaoNovo = document.querySelector("#novo-jogo");
+const lista = document.querySelector("#lista-admin");
+const listaVazia = document.querySelector("#lista-vazia-admin");
+const contagem = document.querySelector("#contagem-admin");
+const formPessoa = document.querySelector("#form-pessoa");
+const campoNome = document.querySelector("#nome-pessoa");
+const campoGoleiro = document.querySelector("#goleiro-pessoa");
+const pessoaMsg = document.querySelector("#pessoa-msg");
 
 let supabase = null;
 let sessao = null;
+let checkins = [];
+let confirmandoId = null;
+let carregandoLista = false;
+let cargaPendente = false;
+let listaAoVivo = false;
 
 function configurado() {
   return Boolean(
@@ -44,9 +58,37 @@ function mensagemErro(codigo) {
       return "Jogadores por time precisa estar entre 1 e 15.";
     case "local_invalido":
       return "Não foi possível ler a localização.";
+    case "nome_invalido":
+      return "Use um nome com 2 a 40 letras.";
+    case "nome_ja_existe":
+      return "Esse nome já está na lista.";
     default:
       return "Não foi possível concluir. Tente de novo.";
   }
+}
+
+function el(tag, classe, texto) {
+  const node = document.createElement(tag);
+  if (classe) node.className = classe;
+  if (texto != null) node.textContent = texto;
+  return node;
+}
+
+function hora(iso) {
+  return new Date(iso).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: FUSO,
+  });
+}
+
+function bancoAntigo(erro) {
+  const texto = `${erro && erro.message ? erro.message : ""} ${erro && erro.details ? erro.details : ""} ${erro && erro.code ? erro.code : ""}`;
+  return /schema cache|PGRST202|Could not find the function/i.test(texto);
+}
+
+function avisoBancoAntigo() {
+  pessoaMsg.textContent = "O banco ainda está na versão anterior. Rode supabase/atualizar-lista-admin.sql no SQL Editor do Supabase.";
 }
 
 function textoFalhaGps(erro) {
@@ -105,6 +147,156 @@ async function carregarParametros() {
     : "O local do campo ainda não foi marcado. Faça isso no centro do campo.";
 }
 
+function renderLista() {
+  if (
+    confirmandoId != null &&
+    !checkins.some((pessoa) => String(pessoa.id) === String(confirmandoId))
+  ) {
+    confirmandoId = null;
+  }
+
+  lista.replaceChildren();
+  checkins.forEach((pessoa, indice) => {
+    const item = el("li");
+    item.append(el("span", "posicao", String(indice + 1)));
+    const nome = el("span", "pessoa", pessoa.nome);
+    if (pessoa.goleiro) nome.append(document.createTextNode(" "), el("span", "badge", "Goleiro"));
+    item.append(nome, el("span", "hora", hora(pessoa.created_at)));
+
+    if (String(confirmandoId) === String(pessoa.id)) {
+      const acoes = el("span", "acoes-lista");
+      const sim = el("button", "compacto perigo", "Confirmar");
+      sim.type = "button";
+      sim.addEventListener("click", () => removerPessoa(pessoa.id));
+      const nao = el("button", "compacto secundario", "Cancelar");
+      nao.type = "button";
+      nao.addEventListener("click", () => {
+        confirmandoId = null;
+        renderLista();
+      });
+      acoes.append(sim, nao);
+      item.append(acoes);
+    } else {
+      const botao = el("button", "compacto secundario", "Remover");
+      botao.type = "button";
+      botao.addEventListener("click", () => {
+        confirmandoId = pessoa.id;
+        renderLista();
+      });
+      item.append(botao);
+    }
+    lista.append(item);
+  });
+
+  listaVazia.hidden = checkins.length > 0;
+  listaVazia.textContent = "Ninguém chegou ainda.";
+  contagem.textContent = checkins.length === 1 ? "1 pessoa" : `${checkins.length} pessoas`;
+}
+
+async function carregarLista() {
+  if (!supabase || !sessao) return;
+  if (carregandoLista) {
+    cargaPendente = true;
+    return;
+  }
+  carregandoLista = true;
+  try {
+    const { data, error } = await supabase
+      .from("checkins")
+      .select("id, nome, goleiro, created_at")
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
+    if (error) throw error;
+    checkins = data || [];
+    renderLista();
+  } catch (erro) {
+    if (checkins.length === 0) {
+      listaVazia.hidden = false;
+      listaVazia.textContent = "Não foi possível carregar a lista.";
+    }
+    console.error(erro);
+  } finally {
+    carregandoLista = false;
+    if (cargaPendente) {
+      cargaPendente = false;
+      carregarLista();
+    }
+  }
+}
+
+function ligarListaAoVivo() {
+  if (listaAoVivo || !supabase) return;
+  listaAoVivo = true;
+  supabase
+    .channel("admin-lista")
+    .on("postgres_changes", { event: "*", schema: "public", table: "checkins" }, carregarLista)
+    .subscribe();
+  setInterval(() => {
+    if (!document.hidden && sessao) carregarLista();
+  }, 8000);
+}
+
+async function adicionarPessoa(evento) {
+  evento.preventDefault();
+  if (!supabase || !sessao) return;
+  const botao = formPessoa.querySelector("button[type=submit]");
+  botao.disabled = true;
+  pessoaMsg.textContent = "Adicionando…";
+  try {
+    const { data, error } = await supabase.rpc("adicionar_pessoa", {
+      p_usuario: sessao.usuario,
+      p_senha: sessao.senha,
+      p_nome: campoNome.value,
+      p_goleiro: campoGoleiro.checked,
+    });
+    if (error) throw error;
+    if (!data || !data.ok) {
+      pessoaMsg.textContent = mensagemErro(data && data.erro);
+      return;
+    }
+    campoNome.value = "";
+    campoGoleiro.checked = false;
+    pessoaMsg.textContent = `${data.nome} entrou na lista.`;
+    await carregarLista();
+  } catch (erro) {
+    if (bancoAntigo(erro)) {
+      avisoBancoAntigo();
+      return;
+    }
+    pessoaMsg.textContent = "Não foi possível adicionar.";
+    console.error(erro);
+  } finally {
+    botao.disabled = false;
+  }
+}
+
+async function removerPessoa(id) {
+  if (!supabase || !sessao) return;
+  pessoaMsg.textContent = "Removendo…";
+  try {
+    const { data, error } = await supabase.rpc("remover_pessoa", {
+      p_usuario: sessao.usuario,
+      p_senha: sessao.senha,
+      p_id: id,
+    });
+    if (error) throw error;
+    if (!data || !data.ok) {
+      pessoaMsg.textContent = mensagemErro(data && data.erro);
+      return;
+    }
+    confirmandoId = null;
+    pessoaMsg.textContent = "Pessoa removida da lista.";
+    await carregarLista();
+  } catch (erro) {
+    if (bancoAntigo(erro)) {
+      avisoBancoAntigo();
+      return;
+    }
+    pessoaMsg.textContent = "Não foi possível remover.";
+    console.error(erro);
+  }
+}
+
 async function entrar(evento) {
   evento.preventDefault();
   if (!supabase) {
@@ -127,7 +319,9 @@ async function entrar(evento) {
     sessao = { usuario: campoUsuario.value, senha: campoSenha.value };
     formLogin.hidden = true;
     painel.hidden = false;
+    ligarListaAoVivo();
     await carregarParametros();
+    await carregarLista();
   } catch (erro) {
     const texto = `${erro && erro.message ? erro.message : ""} ${erro && erro.details ? erro.details : ""}`;
     loginMsg.textContent = /entrar_admin|schema cache|PGRST202/i.test(texto)
@@ -206,7 +400,9 @@ async function apagarJogo() {
     return;
   }
   confirmaNovo.hidden = true;
+  confirmandoId = null;
   adminMsg.textContent = "Lista e sorteio apagados. O local do campo continua salvo.";
+  await carregarLista();
 }
 
 function iniciar() {
@@ -231,5 +427,6 @@ document.querySelector("#novo-sim").addEventListener("click", apagarJogo);
 document.querySelector("#novo-nao").addEventListener("click", () => {
   confirmaNovo.hidden = true;
 });
+formPessoa.addEventListener("submit", adicionarPessoa);
 
 iniciar();
