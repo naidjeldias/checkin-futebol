@@ -15,6 +15,8 @@ Se o banco já existe, rode também `supabase/atualizar-sorteio.sql` uma vez. O 
 
 Se o banco já existe, rode também `supabase/atualizar-aparelho.sql` uma vez. Cada celular coloca um nome por jogo. **Novo jogo** apaga a lista e libera o celular de novo.
 
+Se o banco já existe, rode também `supabase/atualizar-vagas.sql` uma vez. Depois do sorteio, quem chegar entra nas vagas que sobrarem.
+
 A lista mostra o horário de Brasília. Se o grupo for de outro fuso, troque a constante `FUSO` em `app.js`.
 
 ## 2. Ligar a página
@@ -55,6 +57,7 @@ O raio inicial é 200 metros. O check-in só abre depois que o local está salvo
 - Os times 1 e 2, que se enfrentam primeiro, saem completos. O restante se divide por igual entre os outros times.
 - Sem goleiro nesse time, a última vaga fica aberta para puxar alguém de fora. Com um goleiro só, um time fica com essa vaga. Sem nenhum goleiro, os dois ficam com uma vaga.
 - Se a lista lotar e essas vagas ficarem reservadas, quem chegou por último fica na espera.
+- Depois do sorteio, quem chegar entra nas vagas que sobrarem, com as mesmas regras. Quem já está num time não muda de lugar. Quem sai libera a vaga para a próxima pessoa da espera.
 - Sortear de novo pede confirmação e substitui o sorteio.
 - **Novo jogo**, na página de administrador, apaga a lista e o sorteio. O local do campo continua salvo.
 

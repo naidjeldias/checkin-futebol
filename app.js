@@ -241,7 +241,7 @@ function render() {
   contagem.textContent = pessoas.length === 1 ? "1 pessoa" : `${pessoas.length} pessoas`;
 
   if (parametros) {
-    regraSorteio.textContent = `${parametros.num_times} times, ${parametros.jogadores_por_time} jogadores por time. Os dois primeiros times saem completos; o restante se divide por igual. Quem chegou antes entra.`;
+    regraSorteio.textContent = `${parametros.num_times} times, ${parametros.jogadores_por_time} jogadores por time. Os dois primeiros times saem completos; o restante se divide por igual. Quem chegou antes entra. Depois do sorteio, quem chegar entra nas vagas que sobrarem, com as mesmas regras.`;
   }
 
   timesEl.replaceChildren();

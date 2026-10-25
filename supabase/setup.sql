@@ -207,6 +207,151 @@ as $$
   select avaliar_local(p_lat, p_lng, p_precisao);
 $$;
 
+-- Depois do sorteio, coloca quem ainda não tem time nas vagas que sobrarem.
+-- Quem já está num time não muda. Time 1 ou 2 sem goleiro guarda uma vaga.
+create or replace function public.completar_sorteio()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sorteio_id bigint;
+  v_times int;
+  v_por_time int;
+  v_fila record;
+  v_no_time int[];
+  v_tem_gk boolean[];
+  v_gk_n int := 0;
+  v_i int;
+  v_time int;
+  v_menor int;
+  v_candidatos int[];
+  v_posicao int;
+  v_colocados int := 0;
+begin
+  select id, num_times, jogadores_por_time
+    into v_sorteio_id, v_times, v_por_time
+  from sorteio
+  order by created_at desc, id desc
+  limit 1
+  for update;
+
+  if v_sorteio_id is null or v_times is null or v_por_time is null then
+    return jsonb_build_object('ok', true, 'colocados', 0);
+  end if;
+
+  v_no_time := array_fill(0, array[v_times]);
+  v_tem_gk := array_fill(false, array[v_times]);
+
+  for v_fila in
+    select sj.time_num, c.goleiro
+    from sorteio_jogadores sj
+    join checkins c on c.id = sj.checkin_id
+    where sj.sorteio_id = v_sorteio_id
+      and sj.time_num between 1 and v_times
+  loop
+    v_no_time[v_fila.time_num] := v_no_time[v_fila.time_num] + 1;
+    if v_fila.goleiro then
+      v_tem_gk[v_fila.time_num] := true;
+      v_gk_n := v_gk_n + 1;
+    end if;
+  end loop;
+
+  for v_fila in
+    select c.id, c.goleiro
+    from checkins c
+    where not exists (
+      select 1
+      from sorteio_jogadores sj
+      where sj.sorteio_id = v_sorteio_id
+        and sj.checkin_id = c.id
+    )
+    order by c.created_at, c.id
+  loop
+    v_candidatos := array[]::int[];
+
+    if v_fila.goleiro then
+      if v_gk_n < v_times then
+        for v_i in 1 .. least(2, v_times) loop
+          if not v_tem_gk[v_i] and v_no_time[v_i] < v_por_time then
+            v_candidatos := v_candidatos || v_i;
+          end if;
+        end loop;
+
+        if coalesce(array_length(v_candidatos, 1), 0) = 0 then
+          for v_i in 3 .. v_times loop
+            if not v_tem_gk[v_i] and v_no_time[v_i] < v_por_time then
+              v_candidatos := v_candidatos || v_i;
+            end if;
+          end loop;
+        end if;
+      end if;
+    else
+      v_menor := null;
+
+      for v_i in 1 .. least(2, v_times) loop
+        if v_tem_gk[v_i] then
+          if v_no_time[v_i] >= v_por_time then
+            continue;
+          end if;
+        elsif v_no_time[v_i] >= v_por_time - 1 then
+          continue;
+        end if;
+
+        if v_menor is null or v_no_time[v_i] < v_menor then
+          v_menor := v_no_time[v_i];
+          v_candidatos := array[v_i];
+        elsif v_no_time[v_i] = v_menor then
+          v_candidatos := v_candidatos || v_i;
+        end if;
+      end loop;
+
+      if coalesce(array_length(v_candidatos, 1), 0) = 0 then
+        v_menor := null;
+
+        for v_i in 3 .. v_times loop
+          if v_no_time[v_i] >= v_por_time then
+            continue;
+          end if;
+
+          if v_menor is null or v_no_time[v_i] < v_menor then
+            v_menor := v_no_time[v_i];
+            v_candidatos := array[v_i];
+          elsif v_no_time[v_i] = v_menor then
+            v_candidatos := v_candidatos || v_i;
+          end if;
+        end loop;
+      end if;
+    end if;
+
+    if coalesce(array_length(v_candidatos, 1), 0) = 0 then
+      continue;
+    end if;
+
+    v_time := v_candidatos[1 + floor(random() * array_length(v_candidatos, 1))::int];
+
+    select coalesce(max(posicao), 0) + 1
+      into v_posicao
+    from sorteio_jogadores
+    where sorteio_id = v_sorteio_id
+      and time_num = v_time;
+
+    insert into sorteio_jogadores (sorteio_id, checkin_id, time_num, posicao)
+    values (v_sorteio_id, v_fila.id, v_time, v_posicao);
+
+    v_no_time[v_time] := v_no_time[v_time] + 1;
+    if v_fila.goleiro then
+      v_tem_gk[v_time] := true;
+      v_gk_n := v_gk_n + 1;
+    end if;
+    v_colocados := v_colocados + 1;
+  end loop;
+
+  return jsonb_build_object('ok', true, 'colocados', v_colocados);
+end;
+$$;
+
 create or replace function public.checkin(
   p_nome text,
   p_lat double precision,
@@ -292,6 +437,8 @@ begin
 
   insert into checkin_aparelho (aparelho, checkin_id)
   values (p_aparelho, v_id);
+
+  perform completar_sorteio();
 
   return jsonb_build_object(
     'ok', true,
@@ -401,6 +548,8 @@ begin
   end if;
 
   delete from checkins where id = v_id;
+
+  perform completar_sorteio();
 
   return jsonb_build_object('ok', true, 'ja_saiu', false);
 end;
@@ -728,6 +877,7 @@ revoke all on function public.sair_da_lista(uuid) from public;
 revoke all on function public.salvar_parametros(text, text, double precision, double precision, double precision, int, int, int, boolean) from public;
 revoke all on function public.sugerir_times() from public;
 revoke all on function public.novo_jogo(text, text) from public;
+revoke all on function public.completar_sorteio() from public, anon, authenticated;
 
 grant execute on function public.entrar_admin(text, text) to anon, authenticated;
 grant execute on function public.ler_parametros() to anon, authenticated;
