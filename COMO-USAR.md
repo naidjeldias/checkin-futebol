@@ -19,6 +19,8 @@ Se o banco já existe, rode também `supabase/atualizar-vagas.sql` uma vez. Depo
 
 Se o banco já existe, rode também `supabase/atualizar-lista-admin.sql` uma vez. Na página de administrador dá para ver a lista, incluir e remover pessoas.
 
+Se o banco já existe, rode `supabase/atualizar-sem-priorizacao.sql` uma vez. Se a versão sem o limite de um goleiro por time já foi aplicada, rode o arquivo de novo. Cada time fica com no máximo um goleiro. Os times 1 e 2 saem completos, mesmo sem goleiro. Quem já está num time não muda de lugar; um novo **Sugerir times** separa dois goleiros que tenham caído juntos.
+
 A lista mostra o horário de Brasília. Se o grupo for de outro fuso, troque a constante `FUSO` em `app.js`.
 
 ## 2. Ligar a página
@@ -51,14 +53,11 @@ O raio inicial é 200 metros. O check-in só abre depois que o local está salvo
 
 - Quem está dentro do raio escreve o nome e toca em **Cheguei**. Cada celular entra com um nome só.
 - Para corrigir o nome, toque em **Sair da lista** e entre de novo. A nova entrada vai para o fim da fila.
-- **Sou goleiro** começa desmarcado. Só marca quem for goleiro.
+- **Sou goleiro** começa desmarcado. Cada time fica com no máximo um goleiro. Quem passar disso fica na espera, e a próxima pessoa sobe.
 - A lista fica em ordem de chegada e pode ser vista por quem ainda está a caminho.
 - **Sugerir times** sorteia os times e grava o resultado para todo mundo ver o mesmo sorteio.
 - Entram primeiro quem chegou antes, até preencher `times × jogadores por time`.
-- Cada time fica com no máximo um goleiro. Goleiro que passar disso fica na espera, e a próxima pessoa de linha sobe.
-- Os times 1 e 2, que se enfrentam primeiro, saem completos. O restante se divide por igual entre os outros times.
-- Sem goleiro nesse time, a última vaga fica aberta para puxar alguém de fora. Com um goleiro só, um time fica com essa vaga. Sem nenhum goleiro, os dois ficam com uma vaga.
-- Se a lista lotar e essas vagas ficarem reservadas, quem chegou por último fica na espera.
+- Os times 1 e 2, que se enfrentam primeiro, saem completos, mesmo sem goleiro. O restante se divide por igual entre os outros times.
 - Depois do sorteio, quem chegar entra nas vagas que sobrarem, com as mesmas regras. Quem já está num time não muda de lugar. Quem sai libera a vaga para a próxima pessoa da espera.
 - Sortear de novo pede confirmação e substitui o sorteio.
 - Na página de administrador, a lista aparece atualizada. **Adicionar** coloca alguém no fim da fila, sem GPS e sem prender o celular de quem organiza. **Remover** pede confirmação, tira a pessoa e libera o celular dela.

@@ -241,7 +241,7 @@ function render() {
   contagem.textContent = pessoas.length === 1 ? "1 pessoa" : `${pessoas.length} pessoas`;
 
   if (parametros) {
-    regraSorteio.textContent = `${parametros.num_times} times, ${parametros.jogadores_por_time} jogadores por time. Os dois primeiros times saem completos; o restante se divide por igual. Quem chegou antes entra. Depois do sorteio, quem chegar entra nas vagas que sobrarem, com as mesmas regras.`;
+    regraSorteio.textContent = `${parametros.num_times} times, ${parametros.jogadores_por_time} jogadores por time. Os dois primeiros times saem completos; o restante se divide por igual. Cada time fica com no máximo um goleiro. Quem chegou antes entra. Depois do sorteio, quem chegar entra nas vagas que sobrarem, com as mesmas regras.`;
   }
 
   timesEl.replaceChildren();
@@ -263,8 +263,6 @@ function render() {
 
   const porId = new Map(pessoas.map((pessoa) => [String(pessoa.id), pessoa]));
   const presentes = new Set();
-  const tamanhoPrimeira = { 1: 0, 2: 0 };
-  let goleirosPrimeira = 0;
 
   for (let time = 1; time <= sorteio.num_times; time += 1) {
     const card = el("article", "time");
@@ -272,21 +270,12 @@ function render() {
     const nomes = el("ul", "nomes");
     const membros = estado.atribuicoes
       .filter((item) => item.time_num === time)
-      .sort((a, b) => {
-        const goleiroA = porId.get(a.checkin_id)?.goleiro ? 0 : 1;
-        const goleiroB = porId.get(b.checkin_id)?.goleiro ? 0 : 1;
-        if (goleiroA !== goleiroB) return goleiroA - goleiroB;
-        return a.posicao - b.posicao;
-      });
+      .sort((a, b) => a.posicao - b.posicao);
 
     membros.forEach((item) => {
       const pessoa = porId.get(String(item.checkin_id));
       if (!pessoa) return;
       presentes.add(String(pessoa.id));
-      if (time <= 2) {
-        tamanhoPrimeira[time] += 1;
-        if (pessoa.goleiro) goleirosPrimeira += 1;
-      }
       const linha = el("li");
       linha.append(el("span", "pessoa", pessoa.nome));
       if (pessoa.goleiro) linha.append(el("span", "badge", "Goleiro"));
@@ -300,18 +289,6 @@ function render() {
 
     card.append(nomes);
     timesEl.append(card);
-  }
-
-  const faltaVaga = (time) =>
-    time <= sorteio.num_times && tamanhoPrimeira[time] < sorteio.jogadores_por_time;
-  if (
-    !parametrosMudaram &&
-    presentes.size > 0 &&
-    goleirosPrimeira < 2 &&
-    (faltaVaga(1) || faltaVaga(2))
-  ) {
-    sorteioAviso.hidden = false;
-    sorteioAviso.textContent = "Sem dois goleiros na primeira partida: cada time sem goleiro fica com uma vaga para puxar alguém de fora.";
   }
 
   const espera = pessoas.filter((pessoa) => !presentes.has(String(pessoa.id)));
