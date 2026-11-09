@@ -20,8 +20,6 @@ const lista = document.querySelector("#lista");
 const listaVazia = document.querySelector("#lista-vazia");
 const contagem = document.querySelector("#contagem");
 const regraSorteio = document.querySelector("#regra-sorteio");
-const botaoSugerir = document.querySelector("#sugerir");
-const confirmaSorteio = document.querySelector("#confirma-sorteio");
 const sorteioAviso = document.querySelector("#sorteio-aviso");
 const timesEl = document.querySelector("#times");
 const esperaEl = document.querySelector("#espera");
@@ -240,26 +238,18 @@ function render() {
   listaVazia.hidden = pessoas.length > 0;
   contagem.textContent = pessoas.length === 1 ? "1 pessoa" : `${pessoas.length} pessoas`;
 
-  if (parametros) {
-    regraSorteio.textContent = `${parametros.num_times} times, ${parametros.jogadores_por_time} jogadores por time. Os dois primeiros times saem completos; o restante se divide por igual. Cada time fica com no máximo um goleiro. Quem chegou antes entra. Depois do sorteio, quem chegar entra nas vagas que sobrarem, com as mesmas regras.`;
+  if (!estado.sorteio) {
+    timesEl.replaceChildren();
+    esperaEl.replaceChildren();
+    regraSorteio.textContent = "";
+    return;
   }
+
+  const sorteio = estado.sorteio;
+  regraSorteio.textContent = `${sorteio.num_times} times, ${sorteio.jogadores_por_time} jogadores por time. Os dois primeiros times saem completos; o restante se divide por igual. Cada time fica com no máximo um goleiro. Quem chegou antes entra.`;
 
   timesEl.replaceChildren();
   esperaEl.replaceChildren();
-  sorteioAviso.hidden = true;
-
-  if (!estado.sorteio) return;
-
-  const sorteio = estado.sorteio;
-  const parametrosMudaram = Boolean(
-    parametros &&
-    (sorteio.num_times !== parametros.num_times ||
-      sorteio.jogadores_por_time !== parametros.jogadores_por_time)
-  );
-  if (parametrosMudaram) {
-    sorteioAviso.hidden = false;
-    sorteioAviso.textContent = "Os parâmetros mudaram. Sorteie de novo para usar os novos números.";
-  }
 
   const porId = new Map(pessoas.map((pessoa) => [String(pessoa.id), pessoa]));
   const presentes = new Set();
@@ -507,34 +497,11 @@ async function sairDaLista() {
   }
 }
 
-async function sortear() {
-  if (!supabase) return;
-  botaoSugerir.disabled = true;
-  confirmaSorteio.hidden = true;
-  try {
-    const { data, error } = await supabase.rpc("sugerir_times");
-    if (error) throw error;
-    if (!data || !data.ok) {
-      sorteioAviso.hidden = false;
-      sorteioAviso.textContent = mensagemErro(data && data.erro);
-      return;
-    }
-    await carregar();
-  } catch (erro) {
-    sorteioAviso.hidden = false;
-    sorteioAviso.textContent = "Não foi possível sortear os times.";
-    console.error(erro);
-  } finally {
-    botaoSugerir.disabled = false;
-  }
-}
-
 function iniciar() {
   if (!configurado()) {
     avisoConfig.hidden = false;
     avisoConfig.textContent = "Falta ligar o banco. Coloque a URL e a chave anon do Supabase em config.js. Os passos estão no arquivo COMO-USAR.md.";
     statusTexto.textContent = "A lista aparece aqui depois que o banco estiver ligado.";
-    botaoSugerir.disabled = true;
     return;
   }
 
@@ -559,16 +526,5 @@ function iniciar() {
 tentarLocal.addEventListener("click", atualizarLocal);
 formCheckin.addEventListener("submit", enviarCheckin);
 botaoSair.addEventListener("click", sairDaLista);
-botaoSugerir.addEventListener("click", () => {
-  if (estado.sorteio) {
-    confirmaSorteio.hidden = false;
-    return;
-  }
-  sortear();
-});
-document.querySelector("#confirma-sim").addEventListener("click", sortear);
-document.querySelector("#confirma-nao").addEventListener("click", () => {
-  confirmaSorteio.hidden = true;
-});
 
 iniciar();

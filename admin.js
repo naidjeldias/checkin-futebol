@@ -25,10 +25,19 @@ const formPessoa = document.querySelector("#form-pessoa");
 const campoNome = document.querySelector("#nome-pessoa");
 const campoGoleiro = document.querySelector("#goleiro-pessoa");
 const pessoaMsg = document.querySelector("#pessoa-msg");
+const botaoSortear = document.querySelector("#sortear-times");
+const confirmaSortear = document.querySelector("#confirma-sortear");
+const sortearMsg = document.querySelector("#sortear-msg");
+const blocoTimes = document.querySelector("#bloco-times-admin");
+const regraSorteio = document.querySelector("#regra-sorteio");
+const timesEl = document.querySelector("#times");
+const esperaEl = document.querySelector("#espera");
 
 let supabase = null;
 let sessao = null;
 let checkins = [];
+let sorteio = null;
+let atribuicoes = [];
 let confirmandoId = null;
 let carregandoLista = false;
 let cargaPendente = false;
@@ -62,6 +71,8 @@ function mensagemErro(codigo) {
       return "Use um nome com 2 a 40 letras.";
     case "nome_ja_existe":
       return "Esse nome já está na lista.";
+    case "sem_parametros":
+      return "Os parâmetros do jogo ainda não foram gravados.";
     default:
       return "Não foi possível concluir. Tente de novo.";
   }
@@ -193,6 +204,69 @@ function renderLista() {
   contagem.textContent = checkins.length === 1 ? "1 pessoa" : `${checkins.length} pessoas`;
 }
 
+function renderTimes() {
+  if (!sorteio) {
+    blocoTimes.hidden = true;
+    timesEl.replaceChildren();
+    esperaEl.replaceChildren();
+    regraSorteio.textContent = "";
+    return;
+  }
+
+  blocoTimes.hidden = false;
+  regraSorteio.textContent = `${sorteio.num_times} times, ${sorteio.jogadores_por_time} jogadores por time. Os dois primeiros times saem completos; o restante se divide por igual. Cada time fica com no máximo um goleiro. Quem chegou antes entra.`;
+
+  timesEl.replaceChildren();
+  esperaEl.replaceChildren();
+
+  const porId = new Map(checkins.map((pessoa) => [String(pessoa.id), pessoa]));
+  const presentes = new Set();
+
+  for (let time = 1; time <= sorteio.num_times; time += 1) {
+    const card = el("article", "time");
+    card.append(el("h3", null, `Time ${time}`));
+    const nomes = el("ul", "nomes");
+    const membros = atribuicoes
+      .filter((item) => item.time_num === time)
+      .sort((a, b) => a.posicao - b.posicao);
+
+    membros.forEach((item) => {
+      const pessoa = porId.get(String(item.checkin_id));
+      if (!pessoa) return;
+      presentes.add(String(pessoa.id));
+      const linha = el("li");
+      linha.append(el("span", "pessoa", pessoa.nome));
+      if (pessoa.goleiro) linha.append(el("span", "badge", "Goleiro"));
+      nomes.append(linha);
+    });
+
+    const vazias = sorteio.jogadores_por_time - membros.length;
+    for (let vaga = 0; vaga < vazias; vaga += 1) {
+      nomes.append(el("li", "vaga", "vaga"));
+    }
+
+    card.append(nomes);
+    timesEl.append(card);
+  }
+
+  const espera = checkins.filter((pessoa) => !presentes.has(String(pessoa.id)));
+  if (espera.length === 0) return;
+
+  const bloco = el("div", "espera");
+  bloco.append(el("h3", null, "Espera"));
+  const nomes = el("ul", "nomes");
+  espera.forEach((pessoa) => {
+    const linha = el("li");
+    linha.append(el("span", "posicao", String(checkins.indexOf(pessoa) + 1)));
+    const nome = el("span", "pessoa", pessoa.nome);
+    if (pessoa.goleiro) nome.append(document.createTextNode(" "), el("span", "badge", "Goleiro"));
+    linha.append(nome);
+    nomes.append(linha);
+  });
+  bloco.append(nomes);
+  esperaEl.append(bloco);
+}
+
 async function carregarLista() {
   if (!supabase || !sessao) return;
   if (carregandoLista) {
@@ -201,14 +275,31 @@ async function carregarLista() {
   }
   carregandoLista = true;
   try {
-    const { data, error } = await supabase
-      .from("checkins")
-      .select("id, nome, goleiro, created_at")
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true });
-    if (error) throw error;
-    checkins = data || [];
+    const [checkinsRes, sorteioRes, atribuicoesRes] = await Promise.all([
+      supabase
+        .from("checkins")
+        .select("id, nome, goleiro, created_at")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true }),
+      supabase
+        .from("sorteio")
+        .select("id, created_at, num_times, jogadores_por_time")
+        .order("created_at", { ascending: false })
+        .limit(1),
+      supabase.from("sorteio_jogadores").select("sorteio_id, checkin_id, time_num, posicao"),
+    ]);
+
+    const erro = checkinsRes.error || sorteioRes.error || atribuicoesRes.error;
+    if (erro) throw erro;
+
+    checkins = checkinsRes.data || [];
+    sorteio = (sorteioRes.data || [])[0] || null;
+    const sorteioId = sorteio && sorteio.id;
+    atribuicoes = (atribuicoesRes.data || []).filter(
+      (item) => String(item.sorteio_id) === String(sorteioId)
+    );
     renderLista();
+    renderTimes();
   } catch (erro) {
     if (checkins.length === 0) {
       listaVazia.hidden = false;
@@ -230,6 +321,8 @@ function ligarListaAoVivo() {
   supabase
     .channel("admin-lista")
     .on("postgres_changes", { event: "*", schema: "public", table: "checkins" }, carregarLista)
+    .on("postgres_changes", { event: "*", schema: "public", table: "sorteio" }, carregarLista)
+    .on("postgres_changes", { event: "*", schema: "public", table: "sorteio_jogadores" }, carregarLista)
     .subscribe();
   setInterval(() => {
     if (!document.hidden && sessao) carregarLista();
@@ -401,8 +494,34 @@ async function apagarJogo() {
   }
   confirmaNovo.hidden = true;
   confirmandoId = null;
+  sorteio = null;
+  atribuicoes = [];
+  renderTimes();
   adminMsg.textContent = "Lista e sorteio apagados. O local do campo continua salvo.";
   await carregarLista();
+}
+
+async function sortearTimes() {
+  if (!supabase) return;
+  botaoSortear.disabled = true;
+  sortearMsg.textContent = "Sorteando…";
+  try {
+    const { data, error } = await supabase.rpc("sugerir_times");
+    if (error) throw error;
+    if (!data || !data.ok) {
+      sortearMsg.textContent = mensagemErro(data && data.erro);
+      return;
+    }
+    confirmaSortear.hidden = true;
+    sortearMsg.textContent = "Times sorteados com sucesso.";
+    await carregarLista();
+    blocoTimes.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (erro) {
+    sortearMsg.textContent = "Não foi possível sortear os times.";
+    console.error(erro);
+  } finally {
+    botaoSortear.disabled = false;
+  }
 }
 
 function iniciar() {
@@ -428,5 +547,16 @@ document.querySelector("#novo-nao").addEventListener("click", () => {
   confirmaNovo.hidden = true;
 });
 formPessoa.addEventListener("submit", adicionarPessoa);
+botaoSortear.addEventListener("click", () => {
+  if (sessao) {
+    confirmaSortear.hidden = false;
+    return;
+  }
+  sortearMsg.textContent = "Faça login para sortear.";
+});
+document.querySelector("#sortear-sim").addEventListener("click", sortearTimes);
+document.querySelector("#sortear-nao").addEventListener("click", () => {
+  confirmaSortear.hidden = true;
+});
 
 iniciar();

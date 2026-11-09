@@ -70,6 +70,24 @@
         <p class="nota">A pessoa entra no fim da fila. Isso não usa o GPS nem prende este celular.</p>
       </section>
 
+      <button id="sortear-times" class="perigo" type="button">Sortear times</button>
+      <div id="confirma-sortear" class="confirma" hidden>
+        <p>Sortear substitui os times atuais.</p>
+        <div class="botoes">
+          <button id="sortear-sim" class="perigo" type="button">Sortear</button>
+          <button id="sortear-nao" class="secundario" type="button">Cancelar</button>
+        </div>
+      </div>
+      <p id="sortear-msg" class="resultado" aria-live="polite"></p>
+
+      <section id="bloco-times-admin" class="lista-admin" aria-labelledby="titulo-times-admin" hidden>
+        <h2 id="titulo-times-admin">Times sorteados</h2>
+        <p id="regra-sorteio"></p>
+        <div id="times"></div>
+        <div id="espera"></div>
+      </section>
+
+      <button id="novo-jogo" class="perigo" type="button">Novo jogo</button>
       <div id="confirma-novo" class="confirma" hidden>
         <p>Apagar a lista e o sorteio deste jogo?</p>
         <div class="botoes">
@@ -77,7 +95,6 @@
           <button id="novo-nao" class="secundario" type="button">Cancelar</button>
         </div>
       </div>
-      <button id="novo-jogo" class="perigo" type="button">Novo jogo</button>
     </section>
   </main>
 
