@@ -26,7 +26,12 @@
       <input id="usuario" name="usuario" autocomplete="off" required>
       <label for="senha">Senha</label>
       <input id="senha" name="senha" type="password" autocomplete="off" required>
+      <label class="opcao" for="lembrar-credenciais">
+        <input id="lembrar-credenciais" type="checkbox">
+        <span>Lembrar credenciais</span>
+      </label>
       <button type="submit">Entrar</button>
+      <button id="limpar-credenciais" class="secundario" type="button" hidden>Esquecer credenciais</button>
       <p id="login-msg" class="resultado" aria-live="polite"></p>
     </form>
 

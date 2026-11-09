@@ -2,11 +2,14 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { supabaseAnonKey, supabaseUrl } from "./config.js";
 
 const FUSO = "America/Sao_Paulo";
+const CHAVE_CREDENCIAIS = "pelada_admin_credenciais";
 
 const avisoConfig = document.querySelector("#aviso-config");
 const formLogin = document.querySelector("#form-login");
 const campoUsuario = document.querySelector("#usuario");
 const campoSenha = document.querySelector("#senha");
+const campoLembrar = document.querySelector("#lembrar-credenciais");
+const botaoLimparCredenciais = document.querySelector("#limpar-credenciais");
 const loginMsg = document.querySelector("#login-msg");
 const painel = document.querySelector("#painel-admin");
 const estadoLocal = document.querySelector("#estado-local");
@@ -390,6 +393,44 @@ async function removerPessoa(id) {
   }
 }
 
+function carregarCredenciaisSalvas() {
+  try {
+    const bruto = localStorage.getItem(CHAVE_CREDENCIAIS);
+    if (!bruto) return null;
+    const dados = JSON.parse(bruto);
+    if (!dados || typeof dados.usuario !== "string" || typeof dados.senha !== "string") {
+      localStorage.removeItem(CHAVE_CREDENCIAIS);
+      return null;
+    }
+    return { usuario: dados.usuario, senha: dados.senha };
+  } catch (erro) {
+    localStorage.removeItem(CHAVE_CREDENCIAIS);
+    return null;
+  }
+}
+
+function salvarCredenciais(usuario, senha) {
+  localStorage.setItem(CHAVE_CREDENCIAIS, JSON.stringify({ usuario, senha }));
+  botaoLimparCredenciais.hidden = false;
+}
+
+function limparCredenciaisSalvas() {
+  localStorage.removeItem(CHAVE_CREDENCIAIS);
+  campoUsuario.value = "";
+  campoSenha.value = "";
+  campoLembrar.checked = false;
+  botaoLimparCredenciais.hidden = true;
+}
+
+function aplicarCredenciaisSalvas() {
+  const salvas = carregarCredenciaisSalvas();
+  if (!salvas) return;
+  campoUsuario.value = salvas.usuario;
+  campoSenha.value = salvas.senha;
+  campoLembrar.checked = true;
+  botaoLimparCredenciais.hidden = false;
+}
+
 async function entrar(evento) {
   evento.preventDefault();
   if (!supabase) {
@@ -410,6 +451,11 @@ async function entrar(evento) {
       return;
     }
     sessao = { usuario: campoUsuario.value, senha: campoSenha.value };
+    if (campoLembrar.checked) {
+      salvarCredenciais(sessao.usuario, sessao.senha);
+    } else {
+      limparCredenciaisSalvas();
+    }
     formLogin.hidden = true;
     painel.hidden = false;
     ligarListaAoVivo();
@@ -525,6 +571,7 @@ async function sortearTimes() {
 }
 
 function iniciar() {
+  aplicarCredenciaisSalvas();
   if (!configurado()) {
     avisoConfig.hidden = false;
     avisoConfig.textContent = "Falta ligar o banco. Coloque a URL e a chave anon do Supabase em config.js. Os passos estão no arquivo COMO-USAR.md.";
@@ -534,6 +581,10 @@ function iniciar() {
 }
 
 formLogin.addEventListener("submit", entrar);
+botaoLimparCredenciais.addEventListener("click", () => {
+  limparCredenciaisSalvas();
+  loginMsg.textContent = "Credenciais esquecidas neste aparelho.";
+});
 formAdmin.addEventListener("submit", (evento) => {
   evento.preventDefault();
   salvarParametros(false);
