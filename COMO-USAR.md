@@ -21,6 +21,8 @@ Se o banco já existe, rode também `supabase/atualizar-lista-admin.sql` uma vez
 
 Se o banco já existe, rode `supabase/atualizar-sem-priorizacao.sql` uma vez. Se a versão sem o limite de um goleiro por time já foi aplicada, rode o arquivo de novo. Cada time fica com no máximo um goleiro. Os times 1 e 2 saem completos, mesmo sem goleiro. Quem já está num time não muda de lugar; um novo **Sugerir times** separa dois goleiros que tenham caído juntos.
 
+Se o banco já existe, rode `supabase/atualizar-ordem-chegada.sql` uma vez. O sorteio passa a encher os times da frente para trás: quem chegou antes é sorteado só entre os times completos, e as vagas ficam no último time. Quem já está num time não muda de lugar. Depois de rodar, toque em **Sugerir times** de novo.
+
 A lista mostra o horário de Brasília. Se o grupo for de outro fuso, troque a constante `FUSO` em `app.js`.
 
 ## 2. Ligar a página
@@ -57,8 +59,8 @@ O raio inicial é 200 metros. O check-in só abre depois que o local está salvo
 - A lista fica em ordem de chegada e pode ser vista por quem ainda está a caminho.
 - **Sugerir times** sorteia os times e grava o resultado para todo mundo ver o mesmo sorteio.
 - Entram primeiro quem chegou antes, até preencher `times × jogadores por time`.
-- Os times 1 e 2, que se enfrentam primeiro, saem completos, mesmo sem goleiro. O restante se divide por igual entre os outros times.
-- Depois do sorteio, quem chegar entra nas vagas que sobrarem, com as mesmas regras. Quem já está num time não muda de lugar. Quem sai libera a vaga para a próxima pessoa da espera.
+- Os times enchem da frente para trás. Quem chegou antes é sorteado só entre os times que ficam completos. O último time fica com quem chegou por último e com as vagas. Cada time fica com no máximo um goleiro. Um goleiro que cair num time que já tem goleiro vai para o próximo time sem goleiro, e um jogador de linha que chegou depois preenche a vaga.
+- Depois do sorteio, quem chegar entra na primeira vaga, da frente para trás. Quem já está num time não muda de lugar. Quem sai libera a vaga para a próxima pessoa da espera. **Sugerir times** de novo refaz as faixas.
 - Sortear de novo pede confirmação e substitui o sorteio.
 - Na página de administrador, a lista aparece atualizada. **Adicionar** coloca alguém no fim da fila, sem GPS e sem prender o celular de quem organiza. **Remover** pede confirmação, tira a pessoa e libera o celular dela.
 - **Novo jogo**, na página de administrador, apaga a lista e o sorteio. O local do campo continua salvo.

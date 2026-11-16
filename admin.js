@@ -217,7 +217,7 @@ function renderTimes() {
   }
 
   blocoTimes.hidden = false;
-  regraSorteio.textContent = `${sorteio.num_times} times, ${sorteio.jogadores_por_time} jogadores por time. Os dois primeiros times saem completos; o restante se divide por igual. Cada time fica com no máximo um goleiro. Quem chegou antes entra.`;
+  regraSorteio.textContent = `${sorteio.num_times} times, ${sorteio.jogadores_por_time} jogadores por time. Os times enchem da frente para trás. Quem chegou antes é sorteado só entre os times completos; o último time fica com quem chegou por último e com as vagas. Cada time fica com no máximo um goleiro.`;
 
   timesEl.replaceChildren();
   esperaEl.replaceChildren();
